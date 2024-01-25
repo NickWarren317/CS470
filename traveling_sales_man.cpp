@@ -144,6 +144,7 @@ class city_map{
 
 };
 
+//start at node k, find the farthest node from k, make a path there using half the remaining nodes, make a path back with the remaining.
 
 
 vector<vector<int>> random_map_generator(int size){
