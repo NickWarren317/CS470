@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <fstream>
-#include <vector>
+#include <vector>                          
 #include <random>
 
 using namespace std;
@@ -195,8 +195,7 @@ int main(int argc, char **argv){
                                    { 10, 0, 35, 25 },
                                    { 15, 35, 0, 30 },
                                    { 20, 25, 30, 0 } };
-    city_map map = city_map(random_map_generator(300));
-    map.printMatrix();
+    city_map map = city_map(random_map_generator(30));
     map.solve_TSP();
     map.print_path_and_length();
     return 0;
