@@ -197,6 +197,6 @@ int main(int argc, char **argv){
                                    { 20, 25, 30, 0 } };
     city_map map = city_map(random_map_generator(30));
     map.solve_TSP();
-    map.print_path_and_length();
+    map.print_path_and_length(); 
     return 0;
 }
