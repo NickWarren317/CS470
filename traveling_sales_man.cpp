@@ -103,6 +103,7 @@ class city_map{
 
         min_path_length += map[current_city->index][start];
 
+
         struct test_report test;
         test.list = current_path;
         test.value = min_path_length;
