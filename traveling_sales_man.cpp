@@ -235,20 +235,15 @@ class city_map{
 */
 
 //maybe a merge for finding the path? 0->n->0  0->n/2->n->3n/2->0 ...
-void point_generator(struct point * point_list,int n, int m){
-    struct point points[n];
-    int x, y;
-
-    for(int i = 0; i < n; i++){
-        struct point n_point;
-        x = ((float) rand() / (RAND_MAX)) * m;
-        y = ((float) rand() / (RAND_MAX)) * m;
-        n_point.x = x;
-        n_point.y = y;
-
-        points[i] = n_point;
-    }
-    point_list = points;
+struct point point_generator(int m){
+    float x, y;
+    struct point n_point;
+    x = y = 0;
+    x = ((float) rand() / (RAND_MAX)) * m;
+    y = ((float) rand() / (RAND_MAX)) * m;
+    n_point.x = x;
+    n_point.y = y;
+    return n_point;
 };
 
 vector<vector<float>> generate_map(struct point points[], int num_points){
@@ -258,24 +253,25 @@ vector<vector<float>> generate_map(struct point points[], int num_points){
     float dist = 0;
     float x1,x2,y1,y2;
     x1 = x2 = y1 = y2 = 0;
-
-    for(int x = 0; x < num_points; x++){
-        x1 = points[x].x;
-        y1 = points[x].y;
-        for(int y = 0; y < num_points; y++){
+    for(int y = 0; y < num_points; y++){
+        x1 = points[y].x;
+        y1 = points[y].y;
+        for(int x = 0; x < num_points; x++){
             if(x < y){
                 new_row.push_back(ret_map[x][y]);
             } else if(x == y){
-                new_row.push_back(0);
+                new_row.push_back(0.0);
             } else {
                 //d = sqrt((abs(x2 - x1))^2+(abs(y2 - y2))^2)
-                x2 = points[y].x;
-                y2 = points[y].y;
+                x2 = points[x].x;
+                y2 = points[x].y;
                 dist = sqrt(pow(x2-x1,2) + pow(y2-y1,2));
                 new_row.push_back(dist);
             } 
-            
         }
+        ret_map.push_back(new_row);
+        new_row.clear();
+        
     }
 
     return ret_map;
@@ -317,11 +313,12 @@ vector<vector<float>> random_map_generator(int size, int max_distance){
 
 int main(int argc, char ** argv){
     srand(time(NULL));
-    printf("HERE!");
-    struct point p[20];
-    printf("HERE!");
-    point_generator(p,atoi(argv[1]), atoi(argv[2]));
-    city_map<float> map = city_map(generate_map(p,20));
+    int size = atoi(argv[2]);
+    struct point p[size];
+    for(int i = 0; i < size; i++){
+       p[i] = point_generator(atoi(argv[1]));
+    }
+    city_map<float> map = city_map(generate_map(p,size));
 
     map.printMatrix();
     map.solve_TSP();
