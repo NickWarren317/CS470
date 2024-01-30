@@ -133,7 +133,7 @@ class city_map{
     int num = 0;
     //path legnth, path distance, remaining path, current path
     void brute_force_helper(int length, int path_length, vector<int> current_path, int last_node){
-        if(length > nn_path_length) return;
+        if(length > nn_path_length || length > brute_min_path) return;
         vector<int> temp = current_path;
         bool remaining_cities[num_cities] = {false};
         for(int i = 0; i < path_length; i++){
@@ -156,31 +156,6 @@ class city_map{
         }
     }
 
-    
-   /* void brute_force_helper(int length, int nodes_in_path, int last_node, int first_node){
-        if(length == 0){ //first call
-            for(int i = 0; i < num_cities; i++){
-                if(map[i][last_node] != 0 && i != 0) {
-                    printf("%d ", i);
-                    brute_force_helper(0,1,i,i);
-                } //each is a start node.
-            }
-        } else if(nodes_in_path < num_cities){ //recurse on all adjacent nodes
-            for(int i = 0; i < num_cities; i++){
-                if(map[i][last_node] != 0 && i != last_node){
-                    brute_force_helper(length + map[last_node][i], nodes_in_path++, i, first_node);
-                }
-            }
-        } else if(nodes_in_path >= num_cities){ //when all nodes are in path, check length against current min
-            length += map[last_node][first_node];
-            if(length < brute_min_path){
-                printf("%d ", length);
-                brute_min_path = length;
-                return;
-            }
-        }
-    }
-    */
     void printMatrix(){
         printf("     ");
         for(int i = 0; i < num_cities; i++){
