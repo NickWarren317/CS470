@@ -5,7 +5,7 @@
 #include <random>
 
 using namespace std;
-
+int number = 0;
 
 struct node{
     int index;
@@ -20,11 +20,10 @@ struct test_report{
 
 class city_map{
     int num_cities;
-    int path_length;
     int start_index;
 
     int brute_min_path;
-
+    int nn_path_length;
 
     vector<vector<int>> map;
     vector<node> node_list;
@@ -34,8 +33,9 @@ class city_map{
 
     public:
     city_map(vector<vector<int>> cities){
-        num_cities = cities.size();
-        path_length = 0;
+        num_cities = cities[0].size();
+        nn_path_length = 0;
+        brute_min_path = 0;
         vector<int> temp_vec;
         int count = 0;
         for(int x = 0; x < num_cities; x++){
@@ -65,7 +65,7 @@ class city_map{
         }
 
         ideal_path = selection.list;
-        path_length = selection.value;
+        nn_path_length = selection.value;
     }
 
     struct test_report lazy_path(int start){
@@ -118,15 +118,52 @@ class city_map{
     }
 
     void brute_force(){
-        printf("H");
-        brute_force_helper(-1,0,0,0);
-        printf("Path length of: %d", brute_min_path);
+        int length = 2000000000;
+        bool cities[num_cities] = {false};
+        brute_min_path = length;
+        vector<int> end;
+        end.push_back(0);
+        brute_force_helper(0,1, end, 0);
+        printf("Brute Min Path: %d\n", brute_min_path);
+        for(int i = 0; i < num_cities; i++) printf("%d ", brute_ideal_path[i] + 1);
+        printf("1");
+        printf("\n");
+        
+    }
+    int num = 0;
+    //path legnth, path distance, remaining path, current path
+    void brute_force_helper(int length, int path_length, vector<int> current_path, int last_node){
+        if(length > nn_path_length) return;
+        vector<int> temp = current_path;
+        bool remaining_cities[num_cities] = {false};
+        for(int i = 0; i < path_length; i++){
+            remaining_cities[temp[i]] = true;
+        }
+
+        if(path_length < num_cities){
+            for(int i = 0; i < num_cities; i++){
+                if(remaining_cities[i] == false && map[last_node][i] != 0){
+                    temp.push_back(i);
+                    brute_force_helper(length + map[last_node][i], path_length + 1, temp, i);
+                    temp.pop_back();
+                }
+            }
+        } else if(path_length >= num_cities){
+            if(length + map[last_node][0] < brute_min_path){
+                brute_min_path = length + map[last_node][0];
+                brute_ideal_path = current_path;
+            }
+        }
     }
 
-    void brute_force_helper(int length, int nodes_in_path, int last_node, int first_node){
-        if(length == -1){ //first call
+    
+   /* void brute_force_helper(int length, int nodes_in_path, int last_node, int first_node){
+        if(length == 0){ //first call
             for(int i = 0; i < num_cities; i++){
-                if(map[i][last_node] != 0 && i != 0) brute_force_helper(0,1,i,i); //each is a start node.
+                if(map[i][last_node] != 0 && i != 0) {
+                    printf("%d ", i);
+                    brute_force_helper(0,1,i,i);
+                } //each is a start node.
             }
         } else if(nodes_in_path < num_cities){ //recurse on all adjacent nodes
             for(int i = 0; i < num_cities; i++){
@@ -134,14 +171,16 @@ class city_map{
                     brute_force_helper(length + map[last_node][i], nodes_in_path++, i, first_node);
                 }
             }
-        } else if(nodes_in_path == num_cities){ //when all nodes are in path, check length against current min
+        } else if(nodes_in_path >= num_cities){ //when all nodes are in path, check length against current min
             length += map[last_node][first_node];
             if(length < brute_min_path){
+                printf("%d ", length);
                 brute_min_path = length;
+                return;
             }
         }
     }
-
+    */
     void printMatrix(){
         printf("     ");
         for(int i = 0; i < num_cities; i++){
@@ -167,7 +206,7 @@ class city_map{
         }
         printf("%d ", ideal_path[0].index + 1);
         printf("\n");
-        printf("Path length of: %d", path_length);
+        printf("Path length of: %d", nn_path_length);
     }
 
     void mid_path_search(){
@@ -259,13 +298,13 @@ int main(int argc, char ** argv){
                                    { 10, 0, 35, 25 },
                                    { 15, 35, 0, 30 },
                                    { 20, 25, 30, 0 } };
-    printf("%d %d\n", atoi(argv[1]), atoi(argv[2]));
+    //printf("%d %d\n", atoi(argv[1]), atoi(argv[2]));
     city_map map = city_map(random_map_generator(atoi(argv[1]), atoi(argv[2])));
-    //city_map map = city_map(input);
+    //city_map map = city_map(input2);
     map.printMatrix();
+    map.solve_TSP();
     map.brute_force();
-    //map.solve_TSP();
-    //map.print_path_and_length(); 
+    map.print_path_and_length(); 
     //map.mid_path_search();
     return 0;
 }
