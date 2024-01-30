@@ -13,30 +13,36 @@ struct node{
     bool first = false;
 };
 
-struct test_report{
-    vector<node> list;
-    int value;
+struct point{
+    float x;
+    float y;
 };
 
+struct test_report{
+    vector<node> list;
+    float value;
+};
+
+template <class keytype>
 class city_map{
     int num_cities;
     int start_index;
 
-    int brute_min_path;
-    int nn_path_length;
+    keytype brute_min_path;
+    keytype nn_path_length;
 
-    vector<vector<int>> map;
+    vector<vector<keytype>> map;
     vector<node> node_list;
     vector<node> ideal_path;
 
     vector<int> brute_ideal_path;
 
     public:
-    city_map(vector<vector<int>> cities){
+    city_map(vector<vector<keytype>> cities){
         num_cities = cities[0].size();
-        nn_path_length = 0;
-        brute_min_path = 0;
-        vector<int> temp_vec;
+        nn_path_length = 0.0;
+        brute_min_path = 0.0;
+        vector<keytype> temp_vec;
         int count = 0;
         for(int x = 0; x < num_cities; x++){
             node new_node;
@@ -53,7 +59,7 @@ class city_map{
     }
 
     void solve_TSP(){ //does naive method starting on every node.
-        int min = 999999999;
+        float min = 999999999;
         struct test_report canidate;
         struct test_report selection;
         for(int i = 0; i < num_cities; i++){
@@ -70,7 +76,7 @@ class city_map{
 
     struct test_report lazy_path(int start){
         int count = 0;
-        int min_path_length = 0;
+        float min_path_length = 0;
         node * current_city;
 
         current_city = &node_list[start];
@@ -86,7 +92,7 @@ class city_map{
             current_city->visited = true;
             current_path.push_back(*current_city);
             int mindex; //index of next city
-            int min = 9999999; //big numbah
+            float min = 9999999; //big numbah
 
             for(int x = 0; x < num_cities; x++){
                 //crazy if statement
@@ -118,21 +124,26 @@ class city_map{
     }
 
     void brute_force(){
-        int length = 2000000000;
+        //initialize big numbers
+        keytype length = 99999999;
         bool cities[num_cities] = {false};
         brute_min_path = length;
+        //start at 0 (1)
         vector<int> end;
         end.push_back(0);
+        //call helper function to get the party started
         brute_force_helper(0,1, end, 0);
-        printf("Brute Min Path: %d\n", brute_min_path);
+        //print path and min value
+        printf("Brute Min Path: %3.2f\n", brute_min_path);
+
         for(int i = 0; i < num_cities; i++) printf("%d ", brute_ideal_path[i] + 1);
-        printf("1");
+        printf("1"); //prints start node (always 1).
         printf("\n");
         
     }
-    int num = 0;
+
     //path legnth, path distance, remaining path, current path
-    void brute_force_helper(int length, int path_length, vector<int> current_path, int last_node){
+    void brute_force_helper(keytype length, int path_length, vector<int> current_path, int last_node){
         if(length > nn_path_length || length > brute_min_path) return;
         vector<int> temp = current_path;
         bool remaining_cities[num_cities] = {false};
@@ -159,16 +170,16 @@ class city_map{
     void printMatrix(){
         printf("     ");
         for(int i = 0; i < num_cities; i++){
-            printf("%3d ", i + 1);
+            printf("%3d  ", i + 1);
         }   
         printf("\n");
         printf("\n");
         for(int x = 0; x < num_cities; x++){
             for(int y = 0; y < num_cities; y++){
                 if(y == 0){
-                    printf("%3d  ",x + 1);
+                    printf("%3d   ",x + 1);
                 }
-                printf("%3d ", map[x][y]);
+                printf("%3.2f ", map[x][y]);
             }
             printf("\n");
         }
@@ -181,7 +192,7 @@ class city_map{
         }
         printf("%d ", ideal_path[0].index + 1);
         printf("\n");
-        printf("Path length of: %d", nn_path_length);
+        printf("Path length of: %.2f", nn_path_length);
     }
 
     void mid_path_search(){
@@ -224,16 +235,61 @@ class city_map{
 */
 
 //maybe a merge for finding the path? 0->n->0  0->n/2->n->3n/2->0 ...
+void point_generator(struct point * point_list,int n, int m){
+    struct point points[n];
+    int x, y;
 
-vector<vector<int>> random_map_generator(int size, int max_distance){
-    vector<int> new_row;
-    vector<vector<int>> ans;
+    for(int i = 0; i < n; i++){
+        struct point n_point;
+        x = ((float) rand() / (RAND_MAX)) * m;
+        y = ((float) rand() / (RAND_MAX)) * m;
+        n_point.x = x;
+        n_point.y = y;
+
+        points[i] = n_point;
+    }
+    point_list = points;
+};
+
+vector<vector<float>> generate_map(struct point points[], int num_points){
+    vector<vector<float>> ret_map;
+    vector<float> new_row;
+
+    float dist = 0;
+    float x1,x2,y1,y2;
+    x1 = x2 = y1 = y2 = 0;
+
+    for(int x = 0; x < num_points; x++){
+        x1 = points[x].x;
+        y1 = points[x].y;
+        for(int y = 0; y < num_points; y++){
+            if(x < y){
+                new_row.push_back(ret_map[x][y]);
+            } else if(x == y){
+                new_row.push_back(0);
+            } else {
+                //d = sqrt((abs(x2 - x1))^2+(abs(y2 - y2))^2)
+                x2 = points[y].x;
+                y2 = points[y].y;
+                dist = sqrt(pow(x2-x1,2) + pow(y2-y1,2));
+                new_row.push_back(dist);
+            } 
+            
+        }
+    }
+
+    return ret_map;
+}
+
+vector<vector<float>> random_map_generator(int size, int max_distance){
+    vector<float> new_row;
+    vector<vector<float>> ans;
 
     for(int i = 0; i < size; i++){
         if(i == 0){
             new_row.push_back(0);
         } else {
-            new_row.push_back(rand() % max_distance + 1);
+            new_row.push_back(((float) rand() / (RAND_MAX)) * max_distance + 1);
         }
         
     }
@@ -248,7 +304,7 @@ vector<vector<int>> random_map_generator(int size, int max_distance){
             } else if(x == y){
                 new_row.push_back(0);
             } else {
-                new_row.push_back(rand() % max_distance + 1);
+                new_row.push_back(((float) rand() / (RAND_MAX))*max_distance + 1);
             } 
         }
         ans.push_back(new_row);
@@ -261,25 +317,15 @@ vector<vector<int>> random_map_generator(int size, int max_distance){
 
 int main(int argc, char ** argv){
     srand(time(NULL));
-    vector<vector<int>> input = {{0,  3,  9,  5,  14, 32, 13},
-                                 {3,  0,  13, 18, 5,  31, 6},
-                                 {9,  13, 0,  4,  6,  12, 5},
-                                 {5,  18, 4,  0,  9,  15, 2},
-                                 {14, 5,  6,  9,  0,  1,  8},
-                                 {32, 31, 12, 15, 1,  0,  10},
-                                 {13, 6,  5,  2,  8,  10, 0}};
+    printf("HERE!");
+    struct point p[20];
+    printf("HERE!");
+    point_generator(p,atoi(argv[1]), atoi(argv[2]));
+    city_map<float> map = city_map(generate_map(p,20));
 
-    vector<vector<int>> input2 = { { 0, 10, 15, 20 },
-                                   { 10, 0, 35, 25 },
-                                   { 15, 35, 0, 30 },
-                                   { 20, 25, 30, 0 } };
-    //printf("%d %d\n", atoi(argv[1]), atoi(argv[2]));
-    city_map map = city_map(random_map_generator(atoi(argv[1]), atoi(argv[2])));
-    //city_map map = city_map(input2);
     map.printMatrix();
     map.solve_TSP();
     map.brute_force();
     map.print_path_and_length(); 
-    //map.mid_path_search();
     return 0;
 }
