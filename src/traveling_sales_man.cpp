@@ -23,26 +23,25 @@ struct test_report{
     float value;
 };
 
-template <class keytype>
 class city_map{
     int num_cities;
     int start_index;
 
-    keytype brute_min_path;
-    keytype nn_path_length;
+    float brute_min_path;
+    float nn_path_length;
 
-    vector<vector<keytype>> map;
+    vector<vector<float>> map;
     vector<node> node_list;
     vector<node> ideal_path;
 
     vector<int> brute_ideal_path;
 
     public:
-    city_map(vector<vector<keytype>> cities){
+    city_map(vector<vector<float>> cities){
         num_cities = cities[0].size();
         nn_path_length = 0.0;
         brute_min_path = 0.0;
-        vector<keytype> temp_vec;
+        vector<float> temp_vec;
         int count = 0;
         for(int x = 0; x < num_cities; x++){
             node new_node;
@@ -125,7 +124,7 @@ class city_map{
 
     void brute_force(){
         //initialize big numbers
-        keytype length = 99999999;
+        float length = 99999999.0;
         bool cities[num_cities] = {false};
         brute_min_path = length;
         //start at 0 (1)
@@ -143,8 +142,9 @@ class city_map{
     }
 
     //path legnth, path distance, remaining path, current path
-    void brute_force_helper(keytype length, int path_length, vector<int> current_path, int last_node){
+    void brute_force_helper(float length, int path_length, vector<int> current_path, int last_node){
         if(length > nn_path_length || length > brute_min_path) return;
+        //check if path to current node is greater than the min path to said node?
         vector<int> temp = current_path;
         bool remaining_cities[num_cities] = {false};
         for(int i = 0; i < path_length; i++){
@@ -159,7 +159,7 @@ class city_map{
                     temp.pop_back();
                 }
             }
-        } else if(path_length >= num_cities){
+        } else {
             if(length + map[last_node][0] < brute_min_path){
                 brute_min_path = length + map[last_node][0];
                 brute_ideal_path = current_path;
@@ -194,11 +194,23 @@ class city_map{
         printf("\n");
         printf("Path length of: %.2f", nn_path_length);
     }
-
-    void mid_path_search(){
-        int start, end;
+    
+    void min_path_search(){
+        //do nearest neighbor
+        //anchor on every nth node
+        //run brute force between anchored nodes
+        /*
+                        Example:
+            5A            1          6A           7           8
+                   4                    2   9       10A
+                               3       
+        
+        */
+    }
+    void mid_path_search_helper(int start, int end, int iter){
+        int min = 0;
         int max = 0;
-        start = end = num_cities + 5; //both are inpossible
+        //choose the median route
         for(int y = 0; y < num_cities; y++){
             for(int x = y; x < num_cities; x++){
                 if(map[y][x] > max){
@@ -314,15 +326,15 @@ vector<vector<float>> random_map_generator(int size, int max_distance){
 int main(int argc, char ** argv){
     srand(time(NULL));
     int size = atoi(argv[2]);
+    printf("Hello\n");
     struct point p[size];
     for(int i = 0; i < size; i++){
        p[i] = point_generator(atoi(argv[1]));
     }
-    city_map<float> map = city_map(generate_map(p,size));
-
+    city_map map = city_map(generate_map(p,size));
     map.printMatrix();
     map.solve_TSP();
+    printf("Hello\n");
     map.brute_force();
     map.print_path_and_length(); 
-    return 0;
 }
