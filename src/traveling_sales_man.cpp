@@ -3,6 +3,8 @@
 #include <fstream>
 #include <vector>                          
 #include <random>
+#include <algorithm>
+
 
 using namespace std;
 int number = 0;
@@ -37,6 +39,7 @@ class city_map{
     vector<int> brute_ideal_path;
 
     public:
+
     city_map(vector<vector<float>> cities){
         num_cities = cities[0].size();
         nn_path_length = 0.0;
@@ -56,7 +59,23 @@ class city_map{
             temp_vec.clear();
         }
     }
-
+    bool verify_path_length(){
+        bool valid = true;
+        float cur_len = 0.0;
+        for(int i = 1; i < num_cities; i++){
+            cur_len += map[ideal_path[i].index][ideal_path[i-1].index];
+        }
+        cur_len += map[ideal_path[num_cities].index][ideal_path[0].index];
+        if(cur_len != nn_path_length) valid = false;
+        printf("   %f actual length\n", cur_len);
+        return valid;
+    }
+    float get_nn_length(){
+        return nn_path_length;
+    }
+    int cities(){
+        return num_cities;
+    }
     void solve_TSP(){ //does naive method starting on every node.
         float min = 999999999;
         struct test_report canidate;
@@ -72,10 +91,19 @@ class city_map{
         ideal_path = selection.list;
         nn_path_length = selection.value;
     }
-
+    vector<int> run_nn(int start){
+        test_report run = lazy_path(start);
+        vector<int> path;
+        nn_path_length = run.value;
+        ideal_path = run.list;
+        for(int i = 0; i < num_cities; i++){
+            path.push_back(run.list[i].index);
+        }
+        return path;
+    }
     struct test_report lazy_path(int start){
         int count = 0;
-        float min_path_length = 0;
+        float min_path_length = 0.0;
         node * current_city;
 
         current_city = &node_list[start];
@@ -103,13 +131,13 @@ class city_map{
                         min = map[x][current_city->index];
                 }
             }
-            min_path_length+=map[current_city->index][mindex];
+            min_path_length += map[current_city->index][mindex];
             current_city = &node_list[mindex];
             //increment cities visited
             count++;
         }
 
-        min_path_length += map[current_city->index][start];
+        min_path_length += map[current_path[0].index][current_city->index];
 
 
         struct test_report test;
@@ -195,19 +223,7 @@ class city_map{
         printf("Path length of: %.2f", nn_path_length);
     }
     
-    void min_path_search(){
-        //do nearest neighbor
-        //anchor on every nth node
-        //run brute force between anchored nodes
-        /*
-                        Example:
-            5A            1          6A           7           8
-                   4                    2   9       10A
-                               3       
-        
-        */
-    }
-    void mid_path_search_helper(int start, int end, int iter){
+    void get_max_distance(int start, int end, int iter){
         int min = 0;
         int max = 0;
         //choose the median route
@@ -223,7 +239,31 @@ class city_map{
         } 
 
         printf("%d and %d are %d away!", start, end, max);                                                                                                                          
-    }                                                               
+    } 
+
+    /*
+    
+        ACCESS FUNCTIONS
+    
+    */
+
+    //returns nearest neighbor path
+    vector<int> pop_path_nn(){
+        vector<int> path;
+        for(int i = 0; i < ideal_path.size(); i++){
+            path.push_back(ideal_path[i].index);
+        }
+        return path;
+    }        
+
+    //returns number of nodes                                                      
+    int get_cities(){
+        return num_cities;
+    }
+    //returns distance between nodes
+    float dist(int x, int y){
+        return map[x][y];
+    }
 
 };
 
@@ -247,6 +287,280 @@ class city_map{
 */
 
 //maybe a merge for finding the path? 0->n->0  0->n/2->n->3n/2->0 ...
+struct organism{
+    vector<int> path;
+    float length;
+
+    bool operator < (const organism& rhs) const {
+        return length < rhs.length;
+    }
+
+};
+class environment{
+    int num_nodes;
+
+    city_map * graph;
+    int pop_size;
+
+    vector<organism> population;
+    vector<vector<int>> int_pop;
+    int generations;
+
+    vector<int> min_path;
+    float min_length;
+
+    public:
+    environment(city_map * map){
+        generations = 0;
+        graph = map;
+        min_length = 99999999.99;
+        num_nodes = map->cities();
+    }
+
+    void initialize_population(){
+        //run nearest neighbor on each point collecting top n% paths 
+        if(num_nodes < 10){
+            pop_size = num_nodes;
+        } else if(num_nodes < 100){
+            pop_size = num_nodes / 5;
+        } else{
+            pop_size = 50;
+        }
+        float value;
+        for(int i = 0; i < pop_size; i++){
+            graph->lazy_path(i);
+            vector<int> path = graph->run_nn(i);
+            value = graph->get_nn_length();
+            int_pop.push_back(path);
+
+            float init_size = 0;
+            for(int i = 0; i < num_nodes;i++){
+                //printf("%d\n",i);
+                init_size += graph->dist(path[i],path[i-1]);
+            }
+            init_size+=graph->dist(path[0], path[num_nodes-1]);
+            if(init_size < min_length) min_length = init_size;
+            struct organism new_guy;
+            new_guy.length = init_size;
+            new_guy.path = path;
+            population.push_back(new_guy);
+            
+        }
+
+    }
+
+    vector<organism> reproduce(struct organism p1, struct organism p2, int num_children){
+        //printf("bEgins\n");
+        vector<vector<int>> common_pairs; 
+        common_pairs.clear();
+        vector<organism> ans;
+        //printf("Getting pairs!\n");
+        common_pairs = get_common_pairs(p1.path, p2.path);
+        //printf("got pairs\n");
+        vector<int> free_nodes;
+        //printf("init\n");
+        //hash map for which nodes are held in place.
+        bool held[num_nodes] = {false};
+        for(int i = 0; i < common_pairs.size(); i++){
+            held[common_pairs[i][0]] = true;
+            held[common_pairs[i][1]] = true;
+        }
+        for(int i = 0; i < num_nodes; i++){
+            if(!held[i]){
+                free_nodes.push_back(i);
+            } 
+        }
+        //printf("Here! %d\n",common_pairs.size());
+        //reinsert nodes/pairs at random, keep pairs paired up.
+        vector<int> child_path;
+        vector<int> temp1;
+        vector<vector<int>> temp2;
+        float child_size = 0.0;
+        int selection = 0;
+        for(int c = 0; c < num_children; c++){
+            //child_path = p1.path;
+            temp1 = free_nodes;
+            temp2 = common_pairs;
+            for(int n = 0; n < num_nodes - common_pairs.size(); n++){
+                //randomly append pairs and free nodes to the solution.
+                selection = 1 + rand() % 2;
+                //printf("Here!\n");
+                if(selection == 1 && temp2.size() == 0) selection = 2;
+                if(selection == 2 && temp1.size() == 0) selection = 1;
+
+                //printf("pairs remaining: %d, free rem: %d, selection %d \n", temp2.size(), temp1.size(), selection);
+
+                switch (selection)
+                {
+                    //append random pair
+                    case 1:{
+                        if(temp1.size() == 0 && temp2.size() == 0) break;
+                        int pair_selection = rand() % temp2.size();
+                        child_path.push_back(temp2[pair_selection][0]);
+                        child_path.push_back(temp2[pair_selection][1]);
+                        //printf("%d %d \n", temp2[pair_selection][0],temp2[pair_selection][1]);
+                        //printf("%d\n", pair_selection);
+                        temp2.erase(temp2.begin() + pair_selection);
+                        //n++;
+                        break;
+                    }
+                    //append free node
+                    case 2: {
+                        if(temp1.size() == 0 && temp2.size() == 0) break;
+                        int node_selection = rand() % temp1.size();
+                        child_path.push_back(temp1[node_selection]);
+                        //printf("%d \n", temp1[node_selection]);
+                        //printf("%d\n", node_selection);
+                        temp1.erase(temp1.begin() + node_selection);            
+                        break;
+                    }
+                    }
+                }
+            //printf("Done path!\n");
+            if(child_path.size() != p1.path.size()){
+                printf("Size: %d, pushing back: %d\n", child_path.size(), temp1[0]);
+                child_path.push_back(temp1[0]);
+            }
+           int mutation = rand() % 3;
+           if(mutation == 2){
+                //printf("MUTATION!\n");
+                child_path = mutate(child_path);
+            }
+            
+            for(int i = 0; i < num_nodes;i++){
+                //printf("%d\n",i);
+                child_size += graph->dist(child_path[i],child_path[i-1]);
+            }
+            child_size+=graph->dist(child_path[0], child_path[num_nodes-1]);
+            //printf("%f \n",child_size);
+            
+
+            struct organism child;
+            child.length = child_size;
+            child.path = child_path;
+
+            ans.push_back(child);
+            //printf("Clearing Child\n");
+            child_size = 0.0;
+            child_path.clear();
+        }
+        temp1.clear();
+        temp2.clear();
+        common_pairs.clear();
+        free_nodes.clear();
+        //
+        return ans;
+
+    }
+    void run_generation(){
+        //printf("Running Generation!\n");
+        vector<organism> next_generation;
+        vector<organism> batch;
+        int num, num1;
+        for(int i = 0; i < population.size()/2; i++){
+            int num = rand() % pop_size;
+            if(num + 1 == population.size()){
+                num1 = num - 1;
+            } else {
+                num1 = num + 1;
+            }
+            batch = reproduce(population[num],population[num1],5);
+            for(int j = 0; j < batch.size(); j++){
+                next_generation.push_back(batch[j]);
+            }
+        }
+        for(int i = 0; i < next_generation.size(); i++){
+            population.push_back(next_generation[i]);
+        }
+    }
+
+    void thin_herd(){
+        //printf("Thinning Herd!\n");
+        std::sort(population.begin(),population.end());
+        population.erase(population.begin() + int(num_nodes*.5),population.end());
+        min_length = population[0].length;
+    }
+    vector<int> mutate(vector<int> gene){
+        //swaps two random places.
+        int swap1 = rand() % num_nodes;
+        int swap2 = rand() % num_nodes;
+        
+        int temp;
+        temp = gene[swap1];
+        gene[swap1] = gene[swap2];
+        gene[swap2] = temp;
+
+        return gene;
+    }
+
+    vector<vector<int>> get_common_pairs(vector<int> p1, vector<int> p2){
+        int num1, num2;
+        vector<vector<int>> ans;
+        vector<int> common_pair;
+        ans.clear();
+        common_pair.clear();
+        bool used_map[p1.size()] = {false};
+        bool match;
+        num1 = num2 = 0;
+        for(int i = 1; i < p1.size(); i++){
+            num1 = p1[i-1];
+            num2 = p1[i];
+            match = false;
+            common_pair.clear();
+            for(int j = 1; j < p2.size(); j++){
+                if((p2[j] == num2 && p2[j-1] == num1 || p2[j-1] == num2 && p2[j] == num1)
+                    && (!used_map[p2[j]] && !used_map[p2[j-1]])){
+                    match = true;
+                    break;
+                }
+            }
+
+            if(match){
+                common_pair.push_back(num1);
+                common_pair.push_back(num2);
+                used_map[num1] = true;
+                used_map[num2] = true;
+                ans.push_back(common_pair);
+            }
+        }
+        /*
+        if(p1[0] == p2[0] && p1[num_nodes] == p2[num_nodes]){
+            common_pair.push_back(p1[0]);
+            common_pair.push_back(p2[num_nodes]);
+            printf("Pair %d %d found!\n",p1[0],p2[num_nodes]);
+            ans.push_back(common_pair);
+        }
+        */
+        return ans;
+        
+    }
+
+    void print_population(){
+        for(int x = 0; x < population.size(); x++){
+            printf("%d : ",x);
+            for(int y = 0; y < population[x].path.size(); y++){
+                printf("%d ", population[x].path[y]);
+            }
+            printf("\n");
+        }
+    }
+
+    void run_genetic_algorithm(int generations){
+        initialize_population();
+        int init_size;
+        for(int i = 1; i < generations; i++){
+            run_generation();
+            thin_herd();
+            //printf("Min is: %f\n",min_length);
+        }
+        for(int i = 0; i < population[0].path.size(); i++){
+            printf("%d ", population[0].path[i]);
+        }
+        printf("%d\n", population[0].path[0]);
+        printf("Genetic Path length of: %f\n", population[0].length);
+    }
+};
+
 struct point point_generator(int m){
     float x, y;
     struct point n_point;
@@ -325,16 +639,30 @@ vector<vector<float>> random_map_generator(int size, int max_distance){
 
 int main(int argc, char ** argv){
     srand(time(NULL));
-    int size = atoi(argv[2]);
-    printf("Hello\n");
-    struct point p[size];
-    for(int i = 0; i < size; i++){
-       p[i] = point_generator(atoi(argv[1]));
-    }
-    city_map map = city_map(generate_map(p,size));
-    map.printMatrix();
+
+    city_map map = city_map(random_map_generator(300,100));
+
+    vector<int> path1 = {0,1,2,3,4,5,6,8,7};
+    vector<int> path2 ={1,3,2,0,4,5,7,6,8};
+
+    struct organism p1, p2;
+
+    p1.path = path1;
+    p2.path = path2;
+
+    p1.length = 10;
+    p2.length = 8;
+
+    environment env(&map);
+    env.run_genetic_algorithm(100);
+
+    
     map.solve_TSP();
-    printf("Hello\n");
-    map.brute_force();
-    map.print_path_and_length(); 
+    map.print_path_and_length();
+    map.verify_path_length();
+    
+   
+
+
+
 }
