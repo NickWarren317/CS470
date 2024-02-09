@@ -59,13 +59,20 @@ class city_map{
             temp_vec.clear();
         }
     }
+    vector<int> get_nn_path(){
+        vector<int> path;
+        for(int i = 0; i < num_cities; i++){
+            path.push_back(ideal_path[i].index);
+        }
+        return path;
+    }
     bool verify_path_length(){
         bool valid = true;
         float cur_len = 0.0;
         for(int i = 1; i < num_cities; i++){
             cur_len += map[ideal_path[i].index][ideal_path[i-1].index];
         }
-        cur_len += map[ideal_path[num_cities].index][ideal_path[0].index];
+        cur_len += map[ideal_path[num_cities-1].index][ideal_path[0].index];
         if(cur_len != nn_path_length) valid = false;
         printf("   %f actual length\n", cur_len);
         return valid;
@@ -113,7 +120,6 @@ class city_map{
         for(int i = 0; i < num_cities; i++){
             node_list[i].visited = false;
         }
-
         while(count < num_cities){
             //find closest city
             current_city->visited = true;
@@ -327,7 +333,12 @@ class environment{
             pop_size = 50;
         }
         float value;
-        for(int i = 0; i < pop_size; i++){
+        graph->solve_TSP();
+        struct organism init;
+        init.length = graph->get_nn_length();
+        init.path = graph->get_nn_path();
+        population.push_back(init);
+        for(int i = 1; i < pop_size; i++){
             graph->lazy_path(i);
             vector<int> path = graph->run_nn(i);
             value = graph->get_nn_length();
@@ -378,7 +389,14 @@ class environment{
         float child_size = 0.0;
         int selection = 0;
         for(int c = 0; c < num_children; c++){
-            //child_path = p1.path;
+            /*
+            selection = 1 + rand() % 2;
+            if(selection == 1){
+                child_path = p1.path;
+            } else {
+                child_path = p2.path;
+            }
+            */
             temp1 = free_nodes;
             temp2 = common_pairs;
             for(int n = 0; n < num_nodes - common_pairs.size(); n++){
@@ -417,10 +435,6 @@ class environment{
                     }
                 }
             //printf("Done path!\n");
-            if(child_path.size() != p1.path.size()){
-                printf("Size: %d, pushing back: %d\n", child_path.size(), temp1[0]);
-                child_path.push_back(temp1[0]);
-            }
            int mutation = rand() % 3;
            if(mutation == 2){
                 //printf("MUTATION!\n");
@@ -459,12 +473,14 @@ class environment{
         int num, num1;
         for(int i = 0; i < population.size()/2; i++){
             int num = rand() % pop_size;
-            if(num + 1 == population.size()){
+            
+            if(i + 1 == population.size()){
                 num1 = num - 1;
             } else {
                 num1 = num + 1;
             }
-            batch = reproduce(population[num],population[num1],5);
+            
+            batch = reproduce(population[num],population[num1],10);
             for(int j = 0; j < batch.size(); j++){
                 next_generation.push_back(batch[j]);
             }
@@ -477,7 +493,7 @@ class environment{
     void thin_herd(){
         //printf("Thinning Herd!\n");
         std::sort(population.begin(),population.end());
-        population.erase(population.begin() + int(num_nodes*.5),population.end());
+        population.erase(population.begin() + int(num_nodes*.2),population.end());
         min_length = population[0].length;
     }
     vector<int> mutate(vector<int> gene){
@@ -654,7 +670,7 @@ int main(int argc, char ** argv){
     p2.length = 8;
 
     environment env(&map);
-    env.run_genetic_algorithm(100);
+    env.run_genetic_algorithm(25);
 
     
     map.solve_TSP();
