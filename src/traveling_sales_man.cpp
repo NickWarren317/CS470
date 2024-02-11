@@ -92,13 +92,12 @@ class city_map{
             canidate = lazy_path(i);
             if(canidate.value < min){
                 selection = canidate;
-                nn_path_length = selection.value;
-                ideal_path = selection.list;
+                min = canidate.value;
             }
         }
 
-        //ideal_path = selection.list;
-        //nn_path_length = selection.value;
+        ideal_path = selection.list;
+        nn_path_length = selection.value;
     }
     vector<int> run_nn(int start){
         test_report run = lazy_path(start);
@@ -337,17 +336,10 @@ class environment{
             pop_size = 50;
         }
         struct organism init;
-        if(num_nodes <= 1000){
-            graph->solve_TSP();
-            init.length = graph->get_nn_length();
-            init.path = graph->get_nn_path();
-            population.push_back(init);
-        } else {
-            graph->run_nn(0);
-            init.length = graph->get_nn_length();
-            init.path = graph->get_nn_path();
-            population.push_back(init);
-        }
+        graph->solve_TSP();
+        init.length = graph->get_nn_length();
+        init.path = graph->get_nn_path();
+        population.push_back(init);
         vector<organism> batch = reproduce(init, pop_size);
         for(int j = 0; j < batch.size(); j++){
             population.push_back(batch[j]);
@@ -704,15 +696,15 @@ vector<vector<float>> ingest_file(){
 int main(int argc, char ** argv){
     srand(time(NULL));
 
-    city_map map = city_map(random_map_generator(100,10000));
+    city_map map = city_map(random_map_generator(1000,10000));
 
     environment env(&map);
     printf("Built Map!\n");
-    env.run_genetic_algorithm(5000);
+    env.run_genetic_algorithm(250);
     //env.run_genetic_algorithm(1);
     //env.print_population();
-    map.solve_TSP();
-    map.print_path_and_length();
+    //map.solve_TSP();
+    //map.print_path_and_length();
     //map.verify_path_length();
 
     printf("%.2f ", env.get_length(env.population[0].path));
