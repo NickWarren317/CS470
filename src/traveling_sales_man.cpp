@@ -3,8 +3,11 @@
 #include <fstream>
 #include <vector>                          
 #include <random>
+#include <iostream>
+#include <sstream>
 #include <algorithm>
 #include <thread>
+#include <unordered_set>
 
 
 using namespace std;
@@ -132,9 +135,10 @@ class city_map{
             for(int x = 0; x < num_cities; x++){
                 //crazy if statement
                 if(map[x][current_city->index] < min //gets new min.
-                && (node_list[x].visited == false  
-                    || count == num_cities)  //checks if visited.
-                && map[x][current_city->index] != 0){ //0 represents path to self.
+                && node_list[x].visited == false)  
+                    //|| count == num_cities)  //checks if visited.
+                //&& map[x][current_city->index] != 0){ //0 represents path to self.
+                {
                         mindex = x;
                         min = map[x][current_city->index];
                 }
@@ -302,6 +306,13 @@ struct organism{
     bool operator < (const organism& rhs) const {
         return length < rhs.length;
     }
+    organism(vector<int> p, float l){
+        path = p;
+        length = l;
+    }
+    organism(){
+
+    }
 
 };
 class environment{
@@ -336,26 +347,30 @@ class environment{
             pop_size = 50;
         }
         struct organism init;
-        graph->solve_TSP();
-        init.length = graph->get_nn_length();
-        init.path = graph->get_nn_path();
-        population.push_back(init);
-        vector<organism> batch = reproduce(init, pop_size);
-        for(int j = 0; j < batch.size(); j++){
-            population.push_back(batch[j]);
+        if(num_nodes <= 1000){
+            graph->solve_TSP();
+            init.length = graph->get_nn_length();
+            init.path = graph->get_nn_path();
+            population.push_back(init);
+            vector<organism> batch = reproduce(init, pop_size);
+            for(int j = 0; j < batch.size(); j++){
+                population.push_back(batch[j]);
+            }
+        } else {
+            for(int i = 0; i < pop_size; i++){
+                graph->run_nn(i);
+                init.length = graph->get_nn_length();
+                init.path = graph->pop_path_nn();
+                population.push_back(init);
+            }
         }
         printf("Population Initialized!\n");
     }
-    vector<organism> reproduce(struct organism p1, struct organism p2, int num_children){
-        
+    vector<organism> reproduce(const organism &p1, const organism &p2, int num_children){
         vector<organism> ans;
         vector<int> child_path;
-
-        vector<int> temp1 = p1.path;
-        vector<int> temp2 = p2.path;
-
-        float child_size = 0.0;
-        int selection = 0;
+        vector<int> temp2;
+        
         for(int c = 0; c < num_children; c++){
             int n1, n2;
             n1 = rand() % p1.path.size();
@@ -365,12 +380,10 @@ class environment{
             int end_gene = max(n1,n2);
 
             
-            //printf("%d %d\n",start_gene, end_gene);
             //partition out gene from parent 1.
-            temp1 = {p1.path.begin() + start_gene, p1.path.begin() + end_gene};
+            vector<int> temp1 = {p1.path.begin() + start_gene, p1.path.begin() + end_gene};
             
             //Append non existing nodes back from parent 2 in the order they are in.
-            
             for(int i = 0; i < p2.path.size(); i++){
                     if(find(temp1.begin(), temp1.end(), p2.path[i]) == temp1.end()){
                         //printf("%d ", p2.path[i]);
@@ -378,15 +391,21 @@ class environment{
                     } 
                 
             }
-
             //printf("\n");
-           // printf(" %d, %d\n",temp1.size(), temp2.size());
+            //combine into new.
             child_path.insert(child_path.end(), temp1.begin(), temp1.end());
             child_path.insert(child_path.end(), temp2.begin(), temp2.end());
 
-            int mut = rand() % 50;
+            int mut = rand() % 20;
 
-            if(mut == 20) child_path = mutate(child_path);
+            if(mut == 3) {
+                n1 = rand() % child_path.size();
+                n2 = rand() % child_path.size();
+                int temp;
+                temp = child_path[n1];
+                child_path[n1] = child_path[n2];
+                child_path[n2] = temp;   
+            }
 
             struct organism child;
             child.length = get_length(child_path);
@@ -399,6 +418,42 @@ class environment{
             }
             return ans;
     }
+    vector<organism> opt_reproduce(const organism& p1, const organism& p2, int num_children) {
+    vector<organism> ans;
+    unordered_set<int> temp1_set(p1.path.begin(), p1.path.end());
+
+    for (int c = 0; c < num_children; c++) {
+        vector<int> child_path;
+        vector<int> temp2;
+
+        // Randomly select a segment from parent 1's path
+        int n1 = rand() % p1.path.size();
+        int n2 = rand() % p1.path.size();
+        int start_gene = min(n1, n2);
+        int end_gene = max(n1, n2);
+
+        // Copy the selected segment to child path
+        child_path.insert(child_path.end(), p1.path.begin() + start_gene, p1.path.begin() + end_gene);
+
+        // Append non-existing nodes from parent 2 to the child path
+        for (int i : p2.path) {
+            if (temp1_set.find(i) == temp1_set.end()) {
+                temp2.push_back(i);
+            }
+        }
+        child_path.insert(child_path.end(), temp2.begin(), temp2.end());
+
+        // Perform mutation with a probability of 5%
+        if (rand() % 20 == 3) {
+            int mut_pos1 = rand() % child_path.size();
+            int mut_pos2 = rand() % child_path.size();
+            std::swap(child_path[mut_pos1], child_path[mut_pos2]);
+        }
+
+        ans.push_back(organism(child_path, get_length(child_path)));
+    }
+    return ans;
+}
     vector<organism> reproduce(struct organism p1, int num_children){
         //printf("bEgins\n");
         vector<vector<int>> common_pairs; 
@@ -407,19 +462,19 @@ class environment{
         //printf("Getting pairs!\n");
         //common_pairs = get_common_pairs(p1.path, p2.path);
         //printf("got pairs\n");
-        vector<int> free_nodes;
+        //vector<int> free_nodes;
         //printf("init\n");
         //hash map for which nodes are held in place.
-        bool held[num_nodes] = {false};
-        for(int i = 0; i < common_pairs.size(); i++){
-            held[common_pairs[i][0]] = true;
-            held[common_pairs[i][1]] = true;
-        }
-        for(int i = 0; i < num_nodes; i++){
-            if(!held[i]){
-                free_nodes.push_back(i);
-            } 
-        }
+        //bool held[num_nodes] = {false};
+        //for(int i = 0; i < common_pairs.size(); i++){
+        //    held[common_pairs[i][0]] = true;
+        //    held[common_pairs[i][1]] = true;
+        //}
+        //for(int i = 0; i < num_nodes; i++){
+        //    if(!held[i]){
+        //        free_nodes.push_back(i);
+        //    } 
+        //}
         //printf("Here! %d\n",common_pairs.size());
         //reinsert nodes/pairs at random, keep pairs paired up.
         vector<int> child_path;
@@ -429,8 +484,6 @@ class environment{
         vector<int> temp3;
         int temp;
 
-        float child_size = 0.0;
-        int selection = 0;
         for(int c = 0; c < num_children; c++){
             child_path = p1.path;
             
@@ -442,16 +495,18 @@ class environment{
                 num1 = num2;
                 num2 = temp;
             }
-
+            
             //partition into 3 groups
             temp1 = {child_path.begin(), child_path.begin() + num1};
             temp2 = {child_path.begin() + num1, child_path.begin() + num2};
             temp3 = {child_path.begin() + num2, child_path.end()};
             //Shuffle each group
+            
             auto rng = std::default_random_engine {};
             shuffle(temp1.begin(),temp1.end(), rng);
             shuffle(temp2.begin(), temp2.end(), rng);
             shuffle(temp3.begin(), temp3.end(), rng);
+
 
             temp1.insert(temp1.end(),child_path.begin() + num1, child_path.end());
 
@@ -471,6 +526,7 @@ class environment{
             sizes.push_back(get_length(temp2));
             sizes.push_back(get_length(temp3));
 
+
             struct organism child1, child2, child3;
             child1.length = sizes[0];
             child1.path = temp1;
@@ -480,16 +536,18 @@ class environment{
 
             child3.length = sizes[2];
             child3.path = temp3;
-            
+        
             ans.push_back(child1);
             ans.push_back(child2);
             ans.push_back(child3);
 
+            child_path.clear();
+            temp1.clear();
+            temp2.clear();
+            temp3.clear();
             //printf("%.2f\n",get_length(p1.path));
             }
             //printf("Clearing Child\n");
-            child_size = 0.0;
-            child_path.clear();
             return ans;
     }
     float get_length(vector<int> path){
@@ -503,19 +561,14 @@ class environment{
     }
 
     void run_generation(){
-        //printf("Running Generation!\n");
-        vector<organism> next_generation;
-        vector<organism> batch;
-        int num, num1;
-        for(int i = 1; i < population.size() / 2; i++){
-          
+        vector<organism> batch, batch2;
+        for(int i = 1; i < pop_size / 2; i++){
+            
             batch = reproduce(population[i], population[i-1], 10);
+
             for(int j = 0; j < batch.size(); j++){
-                next_generation.push_back(batch[j]);
+                population.push_back(batch[j]);
             }
-        }
-        for(int i = 0; i < next_generation.size(); i++){
-            population.push_back(next_generation[i]);
         }
     }
 
@@ -529,7 +582,7 @@ class environment{
             printf("Improvement!: %.2f -> %.2f\n",min_length, min);
             min_length = min;
         }
-    }
+    } 
     vector<int> mutate(vector<int> gene){
         //swaps two random places.
         int swap1 = rand() % num_nodes;
@@ -597,6 +650,8 @@ class environment{
 
     void run_genetic_algorithm(int generations){
         initialize_population();
+        thin_herd();
+
         int init_size;
         for(int i = 1; i < generations; i++){
             run_generation();
@@ -689,24 +744,51 @@ vector<vector<float>> random_map_generator(int size, int max_distance){
     return ans;
 }
 
-vector<vector<float>> ingest_file(){
-
+vector<vector<float>> ingest_file(string name){
+    fstream file;
+    file.open(name);
+    string nums;
+    char c;
+    float numbah = 0.0;
+    int num_rows = 0;
+    vector<float> row;
+    vector<vector<float>> ans;
+    while(file >> numbah){
+        if(numbah == 0.0){
+            row.push_back(0.0);
+            ans.push_back(row);
+            row.clear();
+            num_rows++;
+        } else {
+            row.push_back(numbah);
+        }
+    }
+    file.close();
+    vector<vector<float>> real_ans(num_rows, vector<float>(num_rows,0.0f));
+    int n = num_rows;
+     for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < n; ++j) {
+            real_ans[i][j] = ans[i][j];
+            real_ans[j][i] = ans[i][j];
+        }
+    }
+    return real_ans;
 }
 
 int main(int argc, char ** argv){
     srand(time(NULL));
+    string file_name = "Size1000(1).graph";
 
-    city_map map = city_map(random_map_generator(1000,10000));
-
+    city_map map = city_map(random_map_generator(500, 10000));
+    //map.printMatrix();
     environment env(&map);
-    printf("Built Map!\n");
-    env.run_genetic_algorithm(250);
+    env.run_genetic_algorithm(100);
+    //map.solve_TSP();
     //env.run_genetic_algorithm(1);
     //env.print_population();
-    //map.solve_TSP();
     //map.print_path_and_length();
     //map.verify_path_length();
 
-    printf("%.2f ", env.get_length(env.population[0].path));
+    //("\nThingy: %.2f \n", env.get_length(env.population[0].path));
 
 }
