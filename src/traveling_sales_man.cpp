@@ -777,12 +777,12 @@ vector<vector<float>> ingest_file(string name){
 
 int main(int argc, char ** argv){
     srand(time(NULL));
-    string file_name = "Size1000(1).graph";
+    string file_name = "Size100.graph";
 
-    city_map map = city_map(random_map_generator(500, 10000));
+    city_map map = city_map(ingest_file(file_name));
     //map.printMatrix();
     environment env(&map);
-    env.run_genetic_algorithm(100);
+    env.run_genetic_algorithm(10000);
     //map.solve_TSP();
     //env.run_genetic_algorithm(1);
     //env.print_population();
