@@ -408,6 +408,7 @@ class environment{
             }
 
             struct organism child;
+            
             child.length = get_length(child_path);
             child.path = child_path;
             ans.push_back(child);
